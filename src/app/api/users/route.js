@@ -1,5 +1,6 @@
 import { Client } from 'pg';
 import dotenv from 'dotenv';
+import bcrypt from 'bcrypt';
 dotenv.config();
 const client = new Client({
   connectionString: process.env.DATABASE_URL,
