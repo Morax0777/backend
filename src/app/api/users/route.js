@@ -44,23 +44,65 @@ export async function POST(request) {
 
 export async function PUT(request) {
   try {
-  const { id, firstname, lastname } = await request.json();
-  const res = await client.query('UPDATE tbl_users SET firstname = $1, lastname = $2 WHERE id = $3 RETURNING *', [firstname, lastname, id]);
-  if (res.rows.length === 0) {
-  return new Response(JSON.stringify({ error: 'User not found' }), {
-  status: 404,
-  headers: { 'Content-Type': 'application/json' },
-  });
-  }
-  return new Response(JSON.stringify(res.rows[0]), {
-  status: 200,
-  headers: { 'Content-Type': 'application/json' },
-  });
+    const { id, firstname, lastname, password } = await request.json();
+
+    // Initialize the base query and parameters
+    let query = 'UPDATE tbl_users SET firstname = $1, lastname = $2';
+    let params = [firstname, lastname];
+
+    // Add password to the query and parameters if it is provided
+    if (password) {
+      const hashedPassword = await bcrypt.hash(password, 10);
+      query += ', password = $3';
+      params.push(hashedPassword);
+    }
+
+    // Add the condition for the user ID
+    query += ' WHERE id = $' + (params.length + 1);
+    params.push(id);
+
+    // Execute the query
+    const res = await client.query(query + ' RETURNING *', params);
+
+    if (res.rows.length === 0) {
+      return new Response(JSON.stringify({ error: 'User not found' }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    return new Response(JSON.stringify(res.rows[0]), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
   } catch (error) {
-  console.error(error);
-  return new Response(JSON.stringify({ error: 'Internal Server Error' }), {
-  status: 500,
-  headers: { 'Content-Type': 'application/json' },
-  });
+    console.error(error);
+    return new Response(JSON.stringify({ error: 'Internal Server Error' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    });
   }
-  }
+}
+
+  export async function DELETE(request) {
+    try {
+    const { id } = await request.json();
+    const res = await client.query('DELETE FROM tbl_users WHERE id = $1 RETURNING *', [id]);
+    if (res.rows.length === 0) {
+    return new Response(JSON.stringify({ error: 'User not found' }), {
+    status: 404,
+    headers: { 'Content-Type': 'application/json' },
+    });
+    }
+    return new Response(JSON.stringify(res.rows[0]), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json' },
+    });
+    } catch (error) {
+    console.error(error);
+    return new Response(JSON.stringify({ error: 'Internal Server Error' }), {
+    status: 500,
+    headers: { 'Content-Type': 'application/json' },
+    });
+    }
+    }
