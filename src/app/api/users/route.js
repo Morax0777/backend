@@ -1,4 +1,3 @@
-// app/api/route.js
 import { Client } from 'pg';
 import dotenv from 'dotenv';
 import bcrypt from 'bcrypt';
@@ -10,10 +9,6 @@ const client = new Client({
 
 client.connect();
 
-async function closeClient() {
-  await client.end();
-}
-
 export async function GET() {
   try {
     const result = await client.query('SELECT * FROM tbl_users');
@@ -22,8 +17,7 @@ export async function GET() {
       headers: { "Content-Type": "application/json" },
     });
   } catch (error) {
-    console.error('GET Error:', error);
-    return new Response(JSON.stringify({ error: "Internal Server Error" }), {
+    return new Response(JSON.stringify(error), {
       status: 500,
       headers: { "Content-Type": "application/json" },
     });
@@ -33,25 +27,15 @@ export async function GET() {
 export async function POST(request) {
   try {
     const { firstname, lastname, username, password } = await request.json();
-    // Validate input
-    if (!firstname || !lastname || !username || !password) {
-      return new Response(JSON.stringify({ error: 'Invalid input' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' },
-      });
-    }
-    // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
-    const res = await client.query(
-      'INSERT INTO tbl_users (firstname, lastname, username, password) VALUES ($1, $2, $3, $4) RETURNING *',
-      [firstname, lastname, username, hashedPassword]
-    );
+    console.log(hashedPassword);
+    const res = await client.query('INSERT INTO tbl_users (firstname, lastname, username, password) VALUES ($1, $2, $3, $4) RETURNING *', [firstname, lastname, username, hashedPassword]);
     return new Response(JSON.stringify(res.rows[0]), {
       status: 201,
       headers: { 'Content-Type': 'application/json' },
     });
   } catch (error) {
-    console.error('POST Error:', error);
+    console.error(error);
     return new Response(JSON.stringify({ error: 'Internal Server Error' }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' },
@@ -61,30 +45,35 @@ export async function POST(request) {
 
 export async function PUT(request) {
   try {
-    const { id, firstname, lastname } = await request.json();
-    // Validate input
-    if (!id || !firstname || !lastname) {
-      return new Response(JSON.stringify({ error: 'Invalid input' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' },
-      });
+    const { id, firstname, lastname, password } = await request.json();
+
+    let query = 'UPDATE tbl_users SET firstname = $1, lastname = $2';
+    let params = [firstname, lastname];
+
+    if (password) {
+      const hashedPassword = await bcrypt.hash(password, 10);
+      query += ', password = $3';
+      params.push(hashedPassword);
     }
-    const res = await client.query(
-      'UPDATE tbl_users SET firstname = $1, lastname = $2 WHERE id = $3 RETURNING *',
-      [firstname, lastname, id]
-    );
+
+    query += ' WHERE id = $' + (params.length + 1);
+    params.push(id);
+
+    const res = await client.query(query + ' RETURNING *', params);
+
     if (res.rows.length === 0) {
       return new Response(JSON.stringify({ error: 'User not found' }), {
         status: 404,
         headers: { 'Content-Type': 'application/json' },
       });
     }
+
     return new Response(JSON.stringify(res.rows[0]), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });
   } catch (error) {
-    console.error('PUT Error:', error);
+    console.error(error);
     return new Response(JSON.stringify({ error: 'Internal Server Error' }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' },
@@ -95,17 +84,7 @@ export async function PUT(request) {
 export async function DELETE(request) {
   try {
     const { id } = await request.json();
-    // Validate input
-    if (!id) {
-      return new Response(JSON.stringify({ error: 'Invalid input' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' },
-      });
-    }
-    const res = await client.query(
-      'DELETE FROM tbl_users WHERE id = $1 RETURNING *',
-      [id]
-    );
+    const res = await client.query('DELETE FROM tbl_users WHERE id = $1 RETURNING *', [id]);
     if (res.rows.length === 0) {
       return new Response(JSON.stringify({ error: 'User not found' }), {
         status: 404,
@@ -117,15 +96,10 @@ export async function DELETE(request) {
       headers: { 'Content-Type': 'application/json' },
     });
   } catch (error) {
-    console.error('DELETE Error:', error);
+    console.error(error);
     return new Response(JSON.stringify({ error: 'Internal Server Error' }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' },
     });
   }
 }
-
-// Close the client connection when the process ends
-process.on('exit', closeClient);
-process.on('SIGINT', closeClient);
-process.on('SIGTERM', closeClient);
