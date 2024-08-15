@@ -22,7 +22,7 @@ export async function POST(request) {
     if (res.rows.length === 0) {
       return new Response(JSON.stringify({ error: 'User not found' }), {
         status: 404,
-        headers: { 'Access-Control-Allow-Origin': '*','Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json' },
       });
     }
 
@@ -34,7 +34,7 @@ export async function POST(request) {
     if (match != true) {
       return new Response(JSON.stringify({ error: 'Invalid password' }), {
         status: 401,
-        headers: { 'Access-Control-Allow-Origin': '*','Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json' },
       });
     }else{
 
